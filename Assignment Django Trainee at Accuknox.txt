@@ -1,0 +1,191 @@
+﻿Assignment For Django Trainee at Accuknox
+
+
+Topic: Django Signals
+
+
+
+
+Ans 1 –  By default django signals are executed synchronously. Whenever a signal is triggered the signal receiver function will be called. This will block the main django thread until the receiver function is finished executing.
+
+
+from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.core.mail import send_mail
+
+
+class MyModel(models.Model):
+    name = models.CharField(max_length=100)
+
+
+# Signal receiver function to send email
+@receiver(post_save, sender=MyModel)
+def send_notification(sender, instance, **kwargs):
+     print(“Sending Mail”)
+    # sending an email
+    send_mail(
+        'Subject - Model Created',
+        f'The instance with the name "{instance.name}" has been saved!',
+        'from@example.com',
+        ['to@example.com'],
+        fail_silently=False,
+    )
+    print("Email sent synchronously!")  # Indicate email sent
+
+
+In the above code snippet , ‘send_notification’ is the signal receiver function which gets executed whenever ‘post_save’ signal is triggered . 
+Since signals are synchronous by default, the output will be 
+
+
+Sending Mail
+Email sent synchronously
+
+
+‘Email sent synchronously’ will be printed after some delay after the mail is sent. This is due to the synchronous nature of signals.
+
+
+Ans 2 – Yes , django signals run in the same thread as the caller.
+
+
+
+
+Defining signal and handler function –
+
+
+class MyModel(models.Model):
+    name = models.CharField(max_length=100)
+
+
+# Define the signal handler
+@receiver(post_save, sender=MyModel)
+def my_signal_handler(sender, instance, **kwargs):
+    # Signal handler thread ID
+    print(f"Signal handler is running in thread ID: {threading.get_ident()}")
+
+
+
+
+
+
+Trigger a signal – 
+
+
+from django.test import TestCase
+
+
+class SignalTestCase(TestCase):
+    def test_signal_thread(self):
+        # Print the thread ID before the signal is triggered
+        print(f"Before signal, thread ID: {threading.get_ident()}")
+
+
+        # Create a new instance of MyModel to trigger the post_save signal
+        instance = MyModel.objects.create(name='Test')
+
+
+        # Print the thread ID after the signal is triggered
+        print(f"After signal, thread ID: {threading.get_ident()}")
+
+
+The output of the above code snippet will be : - 
+
+
+Before signal, thread ID: 8269975360
+Signal handler is running in thread ID: 8269975360
+After signal, thread ID: 8269975360
+
+
+Since the thread ID is same in all cases , we can say that django signals run in same thread as the caller;
+
+
+
+
+
+
+
+
+Ans 3 – Yes , by default django signals run in the same database transaction as of the caller.
+
+
+
+
+
+
+class MyModel(models.Model):
+    name = models.CharField(max_length=100)
+
+
+@receiver(post_save, sender=MyModel)
+def my_signal_handler(sender, instance, **kwargs):
+    MyModel.objects.create(name='Signal Created')
+
+
+class TransactionTestCase(TestCase):
+    def test_signal_transaction(self):
+        with transaction.atomic():
+            instance = MyModel.objects.create(name='Test')
+            # Check if the signal handler's operation is visible within the same transaction
+            self.assertEqual(MyModel.objects.filter(name='Signal Created').count(), 0)
+
+
+        # After the transaction is committed
+        self.assertEqual(MyModel.objects.filter(name='Signal Created').count(), 1)
+
+
+
+
+
+
+When instance = MyModel.objects.create(name='Test') is executed, the ‘post_save’ signal is triggered. The my_signal_handler function runs and creates another MyModel instance with the name 'Signal Created'.
+The self.assertEqual(MyModel.objects.filter(name='Signal Created').count(), 0) assertion checks for the presence of 'Signal Created'. This assertion will pass as ‘Signal Created is not yet committed to the database.
+
+
+After exiting the block, the transaction commits all changes made within it, including those from the signal handler.
+The second assertion, self.assertEqual(MyModel.objects.filter(name='Signal Created').count(), 1), should pass after the transaction is committed because now the changes made by the signal handler are visible in the database.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Topic: Custom Classes in Python
+
+
+Ans 1: 
+class Rectangle:
+    def __init__(self, length: int, width: int):
+        self.length = length
+        self.width = width
+
+
+    def __iter__(self):
+        # Return an iterator that yields length and width in the desired format
+        yield {'length': self.length}
+        yield {'width': self.width}
+
+
+# Example usage:
+rect = Rectangle(20, 10)
+
+
+# Iterating over the Rectangle instance
+for attr in rect:
+    print(attr)
+
+
+The output of above code will be: 
+{'length': 20}
+{'width': 10}
